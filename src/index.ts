@@ -64,6 +64,7 @@ program
     previous.push(value);
     return previous;
   })
+  .option("--harness <name>", "export directly from harness local storage (codex, claude-code, opencode, hermes)")
   .option("--format <name>", "output format: sessions, sharegpt, sft-jsonl, chatml, canonical", "sessions")
   .option("--output <path>", "write output to file instead of stdout")
   .option("--no-redact", "skip privacy redaction")

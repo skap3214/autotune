@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import type { HarnessAdapter, ImportedTrace, SessionResolution } from "./types.js";
+import type { HarnessAdapter, ImportedTrace, SessionRef, SessionResolution } from "./types.js";
 import { listFilesRecursive, parseUnknownTranscript, readUtf8 } from "./utils.js";
 import { ensureMeaningfulLines, normalizeProviderEvents, extractClaudeMeta } from "../format/normalizer.js";
 
@@ -66,6 +66,15 @@ async function resolveClaudeRegistry(): Promise<{
 
 export const claudeCodeAdapter: HarnessAdapter = {
   harness: "claude-code",
+
+  async listSessions(): Promise<SessionRef[]> {
+    const projectsDir = path.join(os.homedir(), ".claude", "projects");
+    const files = await listFilesRecursive(projectsDir, ".jsonl");
+    return files.map((filePath) => ({
+      id: path.basename(filePath, ".jsonl"),
+      path: filePath,
+    }));
+  },
 
   async resolve(options): Promise<SessionResolution> {
     if (options.traceFile) {

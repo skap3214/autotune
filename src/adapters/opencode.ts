@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 
-import type { HarnessAdapter, ImportedTrace, SessionResolution } from "./types.js";
+import type { HarnessAdapter, ImportedTrace, SessionRef, SessionResolution } from "./types.js";
 import { parseUnknownTranscript, readUtf8 } from "./utils.js";
 import { ensureMeaningfulLines, normalizeProviderEvents, extractOpenCodeMeta } from "../format/normalizer.js";
 import { pathExists } from "../core/storage.js";
@@ -104,6 +104,26 @@ async function findSessionIdForCwd(cwd: string): Promise<string | null> {
 
 export const opencodeAdapter: HarnessAdapter = {
   harness: "opencode",
+
+  async listSessions(): Promise<SessionRef[]> {
+    if (!(await pathExists(OPENCODE_DB_PATH))) {
+      return [];
+    }
+    try {
+      const { stdout } = await execFileAsync("sqlite3", [
+        OPENCODE_DB_PATH,
+        "-separator", "\t",
+        "SELECT id FROM session ORDER BY time_updated DESC;",
+      ]);
+      return stdout
+        .trim()
+        .split("\n")
+        .filter(Boolean)
+        .map((id) => ({ id, path: OPENCODE_DB_PATH }));
+    } catch {
+      return [];
+    }
+  },
 
   async resolve(options): Promise<SessionResolution> {
     if (options.traceFile) {

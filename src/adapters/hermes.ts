@@ -2,8 +2,8 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import type { HarnessAdapter, ImportedTrace, SessionResolution } from "./types.js";
-import { parseUnknownTranscript, readUtf8 } from "./utils.js";
+import type { HarnessAdapter, ImportedTrace, SessionRef, SessionResolution } from "./types.js";
+import { listFilesRecursive, parseUnknownTranscript, readUtf8 } from "./utils.js";
 import { ensureMeaningfulLines, normalizeProviderEvents, extractHermesMeta } from "../format/normalizer.js";
 import { pathExists } from "../core/storage.js";
 import { runCommand } from "../core/process.js";
@@ -41,6 +41,16 @@ async function exportAndReadHermesSession(sessionId: string, cwd: string): Promi
 
 export const hermesAdapter: HarnessAdapter = {
   harness: "hermes",
+
+  async listSessions(): Promise<SessionRef[]> {
+    const sessionsDir = path.join(os.homedir(), ".hermes", "sessions");
+    const files = await listFilesRecursive(sessionsDir, ".json");
+    return files.map((filePath) => {
+      const name = path.basename(filePath, ".json");
+      const id = name.startsWith("session_") ? name.slice("session_".length) : name;
+      return { id, path: filePath };
+    });
+  },
 
   async resolve(options): Promise<SessionResolution> {
     if (options.traceFile) {

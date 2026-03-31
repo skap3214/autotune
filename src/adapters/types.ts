@@ -26,8 +26,14 @@ export interface ImportedTrace {
   lines: PiSessionLine[];
 }
 
+export interface SessionRef {
+  id: string;
+  path: string;
+}
+
 export interface HarnessAdapter {
   harness: HarnessName;
+  listSessions?(): Promise<SessionRef[]>;
   resolve(options: AdapterResolveOptions): Promise<SessionResolution>;
   importSession(resolution: SessionResolution): Promise<ImportedTrace>;
 }

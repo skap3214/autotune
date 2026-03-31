@@ -1,7 +1,7 @@
 import os from "node:os";
 import path from "node:path";
 
-import type { HarnessAdapter, ImportedTrace, SessionResolution } from "./types.js";
+import type { HarnessAdapter, ImportedTrace, SessionRef, SessionResolution } from "./types.js";
 import { listFilesRecursive, parseUnknownTranscript, readUtf8 } from "./utils.js";
 import { normalizeProviderEvents, ensureMeaningfulLines, extractCodexMeta } from "../format/normalizer.js";
 
@@ -39,6 +39,15 @@ async function findMostRecentCodexSessionForCwd(cwd: string): Promise<string | n
 
 export const codexAdapter: HarnessAdapter = {
   harness: "codex",
+
+  async listSessions(): Promise<SessionRef[]> {
+    const root = path.join(os.homedir(), ".codex", "sessions");
+    const files = await listFilesRecursive(root, ".jsonl");
+    return files.map((filePath) => ({
+      id: path.basename(filePath, ".jsonl"),
+      path: filePath,
+    }));
+  },
 
   async resolve(options) {
     if (options.traceFile) {
