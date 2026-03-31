@@ -178,7 +178,7 @@ PI is always installed/configured as part of `autotune setup`. It is not an opti
 
 ### Purpose
 
-Resolve the current or specified provider session, ingest it, normalize it, and store it as a raw trace.
+Resolve the current or specified provider session, ingest it, normalize it, and store it as a captured trace.
 
 ### Core contract
 
@@ -252,7 +252,7 @@ The command should try to resolve the session in this order:
     "method": "env:CODEX_THREAD_ID",
     "confidence": "high"
   },
-  "storedPath": "~/.autotune/projects/autotune--a1b2c3d4/sessions/raw/trace_abc123.jsonl"
+  "storedPath": "~/.autotune/projects/autotune--a1b2c3d4/traces/trace_abc123.jsonl"
 }
 ```
 
@@ -325,7 +325,7 @@ These are not required for the default UX, but can exist later:
 1. validate that all trace ids exist
 2. load their normalized stored content plus provenance metadata
 3. invoke PI coding agent with a merge prompt/workflow
-4. produce a curated merged session
+4. produce an idealized merged trace
 5. record provenance back to every input trace
 
 ### Output
@@ -336,7 +336,7 @@ These are not required for the default UX, but can exist later:
   "mergedTraceId": "trace_V1StGXR8_Z5j",
   "sourceTraceIds": ["trace_a", "trace_b", "trace_c"],
   "backend": "pi",
-  "storedPath": "~/.autotune/projects/autotune--a1b2c3d4/sessions/curated/trace_V1StGXR8_Z5j.jsonl"
+  "storedPath": "~/.autotune/projects/autotune--a1b2c3d4/traces/trace_V1StGXR8_Z5j.jsonl"
 }
 ```
 

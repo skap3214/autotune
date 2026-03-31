@@ -11,6 +11,16 @@ export interface SetupCommandOptions {
 
 export async function runSetupCommand(options: SetupCommandOptions): Promise<void> {
   const cwd = process.cwd();
+  let requestedHarnesses = options.harness ?? [];
+
+  if (options.yes && requestedHarnesses.length === 0) {
+    throw new CliError(
+      "INVALID_ARGS",
+      "setup --yes requires at least one --harness value.",
+      2,
+    );
+  }
+
   const installed: unknown[] = [];
   const skipped: unknown[] = [];
   const nextSteps = new Set<string>();
@@ -21,8 +31,6 @@ export async function runSetupCommand(options: SetupCommandOptions): Promise<voi
   } else {
     skipped.push(piResult);
   }
-
-  let requestedHarnesses = options.harness ?? [];
 
   if (requestedHarnesses.length === 0) {
     const detectedHarnesses = await detectHarnesses(cwd);

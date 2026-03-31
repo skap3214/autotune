@@ -74,3 +74,23 @@ export async function writeProjectIndex(
     await releaseLock(lockPath);
   }
 }
+
+export async function updateProjectIndex<T>(
+  projectStorePath: string,
+  updater: (index: ProjectIndex) => Promise<T> | T,
+): Promise<T> {
+  const lockPath = getLockPath(projectStorePath);
+  await acquireLock(lockPath);
+
+  try {
+    const index = await ensureJsonFile<ProjectIndex>(
+      getIndexPath(projectStorePath),
+      createDefaultProjectIndex,
+    );
+    const result = await updater(index);
+    await writeJsonAtomic(getIndexPath(projectStorePath), index);
+    return result;
+  } finally {
+    await releaseLock(lockPath);
+  }
+}

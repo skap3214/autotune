@@ -4,7 +4,7 @@ import path from "node:path";
 import { HARNESS_ADAPTERS } from "../adapters/index.js";
 import type { Outcome, HarnessName } from "../core/config.js";
 import { resolveProjectFromCwd } from "../core/project.js";
-import { readProjectIndex, writeProjectIndex } from "../core/index.js";
+import { updateProjectIndex } from "../core/index.js";
 import { createTraceId } from "../core/trace-id.js";
 import { createCustomEntry, createSessionHeader, stringifyJsonl } from "../format/pi-session.js";
 import { CliError, printJson } from "./shared.js";
@@ -70,26 +70,6 @@ export async function runCaptureCommand(options: CaptureCommandOptions): Promise
     );
   }
 
-  const index = await readProjectIndex(project.storePath);
-  if (resolution.sessionId) {
-    const existing = Object.entries(index.sessions).find(
-      ([, entry]) => entry.harness === harness && entry.sessionId === resolution.sessionId,
-    );
-
-    if (existing) {
-      printJson({
-        ok: true,
-        traceId: existing[0],
-        deduped: true,
-        harness,
-        sessionId: resolution.sessionId,
-        resolution: resolution.resolution,
-        storedPath: path.join(project.storePath, existing[1].filePath),
-      });
-      return;
-    }
-  }
-
   let imported;
   try {
     imported = await adapter.importSession(resolution);
@@ -100,65 +80,85 @@ export async function runCaptureCommand(options: CaptureCommandOptions): Promise
       4,
     );
   }
-  const traceId = createTraceId();
   const metadata = parseMetadata(options.metadata);
-  const storedPath = path.join(project.storePath, "traces", `${traceId}.jsonl`);
+  const result = await updateProjectIndex(project.storePath, async (index) => {
+    if (resolution.sessionId) {
+      const existing = Object.entries(index.sessions).find(
+        ([, entry]) => entry.harness === harness && entry.sessionId === resolution.sessionId,
+      );
 
-  const lines = [
-    createSessionHeader({ sessionId: traceId, cwd: project.cwd }),
-    createCustomEntry({
-      customType: "autotune/provider_metadata",
-      value: {
-        harness,
-        provider: imported.provider,
-        model: imported.model,
-        sessionId: resolution.sessionId,
-        resolution: resolution.resolution.method,
-        confidence: resolution.resolution.confidence,
-        sourcePath: resolution.sourcePath,
-      },
-    }),
-    createCustomEntry({
-      customType: "autotune/trace_metadata",
-      value: {
-        goal: options.goal ?? null,
-        outcome: (options.outcome as Outcome | undefined) ?? null,
-        reason: options.reason ?? null,
-        note: options.note ?? null,
-        metadata,
-        kind: "captured",
-      },
-    }),
-    ...imported.lines,
-  ];
+      if (existing) {
+        return {
+          ok: true,
+          traceId: existing[0],
+          deduped: true,
+          harness,
+          sessionId: resolution.sessionId,
+          resolution: resolution.resolution,
+          storedPath: path.join(project.storePath, existing[1].filePath),
+        };
+      }
+    }
 
-  await fs.writeFile(storedPath, stringifyJsonl(lines), "utf8");
+    const traceId = createTraceId();
+    const storedPath = path.join(project.storePath, "traces", `${traceId}.jsonl`);
 
-  index.sessions[traceId] = {
-    harness,
-    provider: imported.provider,
-    model: imported.model,
-    sessionId: resolution.sessionId,
-    resolution: resolution.resolution.method,
-    confidence: resolution.resolution.confidence,
-    outcome: (options.outcome as Outcome | undefined) ?? null,
-    goal: options.goal ?? null,
-    reason: options.reason ?? null,
-    note: options.note ?? null,
-    metadata,
-    kind: "captured",
-    filePath: path.relative(project.storePath, storedPath),
-    createdAt: new Date().toISOString(),
-  };
+    const lines = [
+      createSessionHeader({ sessionId: traceId, cwd: project.cwd }),
+      createCustomEntry({
+        customType: "autotune/provider_metadata",
+        value: {
+          harness,
+          provider: imported.provider,
+          model: imported.model,
+          sessionId: resolution.sessionId,
+          resolution: resolution.resolution.method,
+          confidence: resolution.resolution.confidence,
+          sourcePath: resolution.sourcePath,
+        },
+      }),
+      createCustomEntry({
+        customType: "autotune/trace_metadata",
+        value: {
+          goal: options.goal ?? null,
+          outcome: (options.outcome as Outcome | undefined) ?? null,
+          reason: options.reason ?? null,
+          note: options.note ?? null,
+          metadata,
+          kind: "captured",
+        },
+      }),
+      ...imported.lines,
+    ];
 
-  await writeProjectIndex(project.storePath, index);
+    await fs.writeFile(storedPath, stringifyJsonl(lines), "utf8");
 
-  printJson({
-    ok: true,
-    traceId,
-    harness,
-    sessionId: resolution.sessionId,
-    resolution: resolution.resolution,
-    storedPath,
+    index.sessions[traceId] = {
+      harness,
+      provider: imported.provider,
+      model: imported.model,
+      sessionId: resolution.sessionId,
+      resolution: resolution.resolution.method,
+      confidence: resolution.resolution.confidence,
+      outcome: (options.outcome as Outcome | undefined) ?? null,
+      goal: options.goal ?? null,
+      reason: options.reason ?? null,
+      note: options.note ?? null,
+      metadata,
+      kind: "captured",
+      filePath: path.relative(project.storePath, storedPath),
+      createdAt: new Date().toISOString(),
+    };
+
+    return {
+      ok: true,
+      traceId,
+      harness,
+      sessionId: resolution.sessionId,
+      resolution: resolution.resolution,
+      storedPath,
+    };
   });
+
+  printJson(result);
 }

@@ -85,4 +85,16 @@ describe("runSetupCommand", () => {
     expect(payload.ok).toBe(true);
     expect(payload.installed).toHaveLength(2);
   });
+
+  it("fails fast when --yes is used without any harnesses", async () => {
+    const tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "autotune-home-"));
+    vi.spyOn(os, "homedir").mockReturnValue(tempHome);
+
+    const { runSetupCommand } = await import("../../src/cli/setup.js");
+
+    await expect(runSetupCommand({ yes: true })).rejects.toMatchObject({
+      code: "INVALID_ARGS",
+      exitCode: 2,
+    });
+  });
 });

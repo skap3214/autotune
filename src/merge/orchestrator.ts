@@ -1,10 +1,9 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import { type ProjectIndex, type RegistryEntry } from "../core/config.js";
-import { readProjectIndex, writeProjectIndex } from "../core/index.js";
+import { type RegistryEntry } from "../core/config.js";
+import { readProjectIndex, updateProjectIndex } from "../core/index.js";
 import { createTraceId } from "../core/trace-id.js";
-import { writeJsonAtomic } from "../core/storage.js";
 import { createCustomEntry, createSessionHeader, stringifyJsonl, type PiSessionLine } from "../format/pi-session.js";
 import { buildMergePrompt } from "./prompt.js";
 import { runPiMerge } from "./pi-backend.js";
@@ -83,33 +82,33 @@ export async function mergeTraces(input: {
 
   await fs.writeFile(storedPath, stringifyJsonl(mergedLines), "utf8");
 
-  index.sessions[mergedTraceId] = {
-    harness: "pi",
-    provider: null,
-    model: null,
-    sessionId: null,
-    resolution: "merge:pi",
-    confidence: "high",
-    outcome: null,
-    goal: null,
-    reason: null,
-    note: input.note ?? null,
-    metadata: null,
-    kind: "merged",
-    filePath: path.relative(input.project.storePath, storedPath),
-    createdAt: new Date().toISOString(),
-  };
-
-  for (const traceId of input.traceIds) {
-    index.links.push({
-      sourceId: traceId,
-      targetId: mergedTraceId,
-      linkType: "merged_into",
+  await updateProjectIndex(input.project.storePath, async (currentIndex) => {
+    currentIndex.sessions[mergedTraceId] = {
+      harness: null,
+      provider: null,
+      model: null,
+      sessionId: null,
+      resolution: "merge:pi",
+      confidence: "high",
+      outcome: null,
+      goal: null,
+      reason: null,
+      note: input.note ?? null,
+      metadata: null,
+      kind: "merged",
+      filePath: path.relative(input.project.storePath, storedPath),
       createdAt: new Date().toISOString(),
-    });
-  }
+    };
 
-  await writeProjectIndex(input.project.storePath, index);
+    for (const traceId of input.traceIds) {
+      currentIndex.links.push({
+        sourceId: traceId,
+        targetId: mergedTraceId,
+        linkType: "merged_into",
+        createdAt: new Date().toISOString(),
+      });
+    }
+  });
 
   return {
     mergedTraceId,
