@@ -7,8 +7,10 @@ import { loadTraceLines, resolveTraceIds } from "../export/loader.js";
 import { createRedactor, type RedactionManifest } from "../export/redactor.js";
 import {
   formatSessions,
+  formatShareGpt,
   formatSftJsonl,
   formatChatMl,
+  formatCanonical,
   type ExportFormat,
   type TraceExportPayload,
 } from "../export/formatters.js";
@@ -22,7 +24,7 @@ export interface ExportCommandOptions {
   kind?: string;
 }
 
-const VALID_FORMATS = new Set<string>(["sessions", "sft-jsonl", "chatml"]);
+const VALID_FORMATS = new Set<string>(["sessions", "sharegpt", "sft-jsonl", "chatml", "canonical"]);
 
 export async function runExportCommand(options: ExportCommandOptions): Promise<void> {
   const project = await resolveProjectFromCwd(process.cwd());
@@ -38,7 +40,7 @@ export async function runExportCommand(options: ExportCommandOptions): Promise<v
   if (!VALID_FORMATS.has(format)) {
     throw new CliError(
       "INVALID_ARGS",
-      `Unknown export format "${format}". Valid: sessions, sft-jsonl, chatml`,
+      `Unknown export format "${format}". Valid: sessions, sharegpt, sft-jsonl, chatml, canonical`,
       2,
     );
   }
@@ -84,11 +86,17 @@ export async function runExportCommand(options: ExportCommandOptions): Promise<v
     case "sessions":
       output = formatSessions(payloads);
       break;
+    case "sharegpt":
+      output = formatShareGpt(payloads);
+      break;
     case "sft-jsonl":
       output = formatSftJsonl(payloads);
       break;
     case "chatml":
       output = formatChatMl(payloads);
+      break;
+    case "canonical":
+      output = formatCanonical(payloads);
       break;
   }
 

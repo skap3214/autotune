@@ -64,7 +64,7 @@ program
     previous.push(value);
     return previous;
   })
-  .option("--format <name>", "output format: sessions, sft-jsonl, chatml", "sessions")
+  .option("--format <name>", "output format: sessions, sharegpt, sft-jsonl, chatml, canonical", "sessions")
   .option("--output <path>", "write output to file instead of stdout")
   .option("--no-redact", "skip privacy redaction")
   .option("--kind <type>", "filter by trace kind: captured, merged, all", "all")

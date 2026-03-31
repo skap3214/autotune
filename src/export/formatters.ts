@@ -2,7 +2,7 @@ import type { SessionIndexEntry } from "../core/config.js";
 import type { PiCustomEntry, PiMessageEntry, PiSessionLine } from "../format/pi-session.js";
 import type { ProviderMetadataValue, TraceMetadataValue } from "../format/custom-entries.js";
 
-export type ExportFormat = "sessions" | "sft-jsonl" | "chatml";
+export type ExportFormat = "sessions" | "sharegpt" | "sft-jsonl" | "chatml" | "canonical";
 
 export interface TraceExportPayload {
   traceId: string;
@@ -119,4 +119,131 @@ export function formatChatMl(payloads: TraceExportPayload[]): string {
   });
 
   return `${blocks.join("\n---\n")}\n`;
+}
+
+// ---------------------------------------------------------------------------
+// sharegpt — ShareGPT JSONL for Unsloth / Axolotl
+// ---------------------------------------------------------------------------
+
+const ROLE_TO_SHAREGPT: Record<string, string> = {
+  user: "human",
+  assistant: "gpt",
+  system: "system",
+};
+
+export function formatShareGpt(payloads: TraceExportPayload[]): string {
+  const lines = payloads.map((payload) => {
+    const traceMeta = extractTraceMeta(payload.lines);
+    const providerMeta = extractProviderMeta(payload.lines);
+    const conversations: Array<{ from: string; value: string }> = [];
+
+    // System turn from metadata.
+    const systemParts: string[] = [];
+    if (providerMeta?.harness) systemParts.push(`Harness: ${providerMeta.harness}`);
+    if (traceMeta?.goal) systemParts.push(`Goal: ${traceMeta.goal}`);
+    if (systemParts.length > 0) {
+      conversations.push({ from: "system", value: systemParts.join("\n") });
+    }
+
+    for (const line of payload.lines) {
+      if (line.type === "message") {
+        conversations.push({
+          from: ROLE_TO_SHAREGPT[line.role] ?? line.role,
+          value: line.text,
+        });
+      }
+
+      if (line.type === "custom" && line.customType === "autotune/tool_call") {
+        const val = line.value as Record<string, unknown>;
+        const name = String(val.tool ?? "unknown");
+        const input = val.input ? JSON.stringify(val.input) : "";
+        conversations.push({ from: "function_call", value: `${name}\n${input}` });
+      }
+
+      if (line.type === "custom" && line.customType === "autotune/tool_result") {
+        const val = line.value as Record<string, unknown>;
+        const output = typeof val.output === "string" ? val.output : JSON.stringify(val.output);
+        conversations.push({ from: "observation", value: output });
+      }
+    }
+
+    return JSON.stringify({ conversations });
+  });
+
+  return `${lines.join("\n")}\n`;
+}
+
+// ---------------------------------------------------------------------------
+// canonical — pi-brain compatible CanonicalSession
+// ---------------------------------------------------------------------------
+
+export function formatCanonical(payloads: TraceExportPayload[]): string {
+  const lines = payloads.map((payload) => {
+    const providerMeta = extractProviderMeta(payload.lines);
+    const traceMeta = extractTraceMeta(payload.lines);
+    const header = payload.lines.find((l) => l.type === "session") as
+      | { cwd?: string; timestamp?: string }
+      | undefined;
+
+    const messages: Array<{
+      role: string;
+      content: string;
+      timestamp?: string;
+      model?: string;
+      toolName?: string;
+      toolCallId?: string;
+    }> = [];
+
+    for (const line of payload.lines) {
+      if (line.type === "message") {
+        messages.push({
+          role: line.role,
+          content: line.text,
+          timestamp: line.timestamp,
+        });
+      }
+
+      if (line.type === "custom" && line.customType === "autotune/tool_call") {
+        const val = line.value as Record<string, unknown>;
+        const callId = typeof val.callId === "string" ? val.callId : null;
+        messages.push({
+          role: "assistant",
+          content: `[Tool call: ${String(val.tool ?? "unknown")}] ${typeof val.input === "string" ? val.input : JSON.stringify(val.input ?? "")}`,
+          timestamp: line.timestamp,
+          toolName: String(val.tool ?? "unknown"),
+          ...(callId ? { toolCallId: callId } : {}),
+        });
+      }
+
+      if (line.type === "custom" && line.customType === "autotune/tool_result") {
+        const val = line.value as Record<string, unknown>;
+        const toolName = typeof val.tool === "string" ? val.tool : null;
+        const callId = typeof val.callId === "string" ? val.callId : null;
+        messages.push({
+          role: "tool-result",
+          content: typeof val.output === "string" ? val.output : JSON.stringify(val.output ?? ""),
+          timestamp: line.timestamp,
+          ...(toolName ? { toolName } : {}),
+          ...(callId ? { toolCallId: callId } : {}),
+        });
+      }
+    }
+
+    return JSON.stringify({
+      id: payload.traceId,
+      source: providerMeta?.harness ?? payload.indexEntry.harness,
+      messages,
+      projectPath: header?.cwd,
+      name: traceMeta?.goal,
+      createdAt: payload.indexEntry.createdAt,
+      metadata: {
+        model: providerMeta?.model ?? payload.indexEntry.model,
+        provider: providerMeta?.provider ?? payload.indexEntry.provider,
+        outcome: traceMeta?.outcome ?? payload.indexEntry.outcome,
+        reason: traceMeta?.reason ?? payload.indexEntry.reason,
+      },
+    });
+  });
+
+  return `${lines.join("\n")}\n`;
 }
