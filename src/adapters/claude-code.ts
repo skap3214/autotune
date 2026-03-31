@@ -4,7 +4,7 @@ import path from "node:path";
 
 import type { HarnessAdapter, ImportedTrace, SessionResolution } from "./types.js";
 import { listFilesRecursive, parseUnknownTranscript, readUtf8 } from "./utils.js";
-import { ensureMeaningfulLines, normalizeProviderEvents } from "../format/normalizer.js";
+import { ensureMeaningfulLines, normalizeProviderEvents, extractClaudeMeta } from "../format/normalizer.js";
 
 async function findClaudeSessionFileById(sessionId: string): Promise<string | null> {
   const root = path.join(os.homedir(), ".claude");
@@ -130,10 +130,11 @@ export const claudeCodeAdapter: HarnessAdapter = {
 
   async importSession(resolution): Promise<ImportedTrace> {
     const events = parseUnknownTranscript(resolution.sourceContent);
+    const meta = extractClaudeMeta(events);
     const lines = ensureMeaningfulLines(normalizeProviderEvents("claude-code", events), events);
     return {
       provider: "anthropic",
-      model: null,
+      model: meta.model,
       lines,
     };
   },

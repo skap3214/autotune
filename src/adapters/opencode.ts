@@ -5,7 +5,7 @@ import { promisify } from "node:util";
 
 import type { HarnessAdapter, ImportedTrace, SessionResolution } from "./types.js";
 import { parseUnknownTranscript, readUtf8 } from "./utils.js";
-import { ensureMeaningfulLines, normalizeProviderEvents } from "../format/normalizer.js";
+import { ensureMeaningfulLines, normalizeProviderEvents, extractOpenCodeMeta } from "../format/normalizer.js";
 import { pathExists } from "../core/storage.js";
 import { runCommand } from "../core/process.js";
 
@@ -13,26 +13,70 @@ const execFileAsync = promisify(execFile);
 
 const OPENCODE_DB_PATH = path.join(os.homedir(), ".local", "share", "opencode", "opencode.db");
 
+function escapeSql(value: string): string {
+  return value.replace(/'/g, "''");
+}
+
 async function readSessionFromDb(sessionId: string): Promise<string | null> {
   if (!(await pathExists(OPENCODE_DB_PATH))) {
     return null;
   }
 
   try {
-    const { stdout } = await execFileAsync("sqlite3", [
+    const escaped = escapeSql(sessionId);
+
+    // Read messages.
+    const { stdout: msgStdout } = await execFileAsync("sqlite3", [
       OPENCODE_DB_PATH,
       "-json",
-      `SELECT m.data FROM message m WHERE m.session_id='${sessionId.replace(/'/g, "''")}' ORDER BY m.time_created;`,
+      `SELECT id, data, time_created FROM message WHERE session_id='${escaped}' ORDER BY time_created;`,
     ]);
 
-    const rows = JSON.parse(stdout) as Array<{ data: string }>;
-    if (rows.length === 0) {
+    const msgRows = JSON.parse(msgStdout) as Array<{ id: string; data: string; time_created: number }>;
+    if (msgRows.length === 0) {
       return null;
     }
 
-    // Each row.data is a JSON string representing a message.
-    // Return as a JSON array of message objects.
-    const messages = rows.map((row) => JSON.parse(row.data) as unknown);
+    // Read parts for richer tool/text data.
+    const { stdout: partStdout } = await execFileAsync("sqlite3", [
+      OPENCODE_DB_PATH,
+      "-json",
+      `SELECT message_id, data, time_created FROM part WHERE session_id='${escaped}' ORDER BY message_id, time_created;`,
+    ]);
+
+    let partRows: Array<{ message_id: string; data: string; time_created: number }> = [];
+    try {
+      partRows = JSON.parse(partStdout) as typeof partRows;
+    } catch {
+      // parts table might not exist or be empty.
+    }
+
+    // Index parts by message_id.
+    const partsByMsg = new Map<string, unknown[]>();
+    for (const row of partRows) {
+      try {
+        const parsed = JSON.parse(row.data) as unknown;
+        const list = partsByMsg.get(row.message_id);
+        if (list) {
+          list.push(parsed);
+        } else {
+          partsByMsg.set(row.message_id, [parsed]);
+        }
+      } catch {
+        // skip unparseable parts
+      }
+    }
+
+    // Enrich messages with their parts.
+    const messages = msgRows.map((row) => {
+      const msg = JSON.parse(row.data) as Record<string, unknown>;
+      const parts = partsByMsg.get(row.id);
+      if (parts && parts.length > 0) {
+        msg.parts = parts;
+      }
+      return msg;
+    });
+
     return JSON.stringify(messages);
   } catch {
     return null;
@@ -135,31 +179,11 @@ export const opencodeAdapter: HarnessAdapter = {
 
   async importSession(resolution): Promise<ImportedTrace> {
     const events = parseUnknownTranscript(resolution.sourceContent);
-
-    // Try to extract model info from the first message.
-    let model: string | null = null;
-    let provider: string | null = null;
-    if (Array.isArray(events) && events.length > 0) {
-      const first = events[0] as Record<string, unknown> | undefined;
-      if (first && typeof first === "object") {
-        if (typeof (first as Record<string, unknown>).modelID === "string") {
-          model = (first as Record<string, unknown>).modelID as string;
-        }
-        if (typeof (first as Record<string, unknown>).providerID === "string") {
-          provider = (first as Record<string, unknown>).providerID as string;
-        }
-        const m = first.model as Record<string, unknown> | undefined;
-        if (m && typeof m === "object") {
-          if (typeof m.modelID === "string") model = m.modelID as string;
-          if (typeof m.providerID === "string") provider = m.providerID as string;
-        }
-      }
-    }
-
+    const meta = extractOpenCodeMeta(events);
     const lines = ensureMeaningfulLines(normalizeProviderEvents("opencode", events), events);
     return {
-      provider: provider ?? "opencode",
-      model,
+      provider: meta.provider ?? "opencode",
+      model: meta.model,
       lines,
     };
   },

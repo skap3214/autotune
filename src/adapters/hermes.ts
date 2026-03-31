@@ -4,7 +4,7 @@ import path from "node:path";
 
 import type { HarnessAdapter, ImportedTrace, SessionResolution } from "./types.js";
 import { parseUnknownTranscript, readUtf8 } from "./utils.js";
-import { ensureMeaningfulLines, normalizeProviderEvents } from "../format/normalizer.js";
+import { ensureMeaningfulLines, normalizeProviderEvents, extractHermesMeta } from "../format/normalizer.js";
 import { pathExists } from "../core/storage.js";
 import { runCommand } from "../core/process.js";
 
@@ -94,10 +94,11 @@ export const hermesAdapter: HarnessAdapter = {
 
   async importSession(resolution): Promise<ImportedTrace> {
     const events = parseUnknownTranscript(resolution.sourceContent);
+    const meta = extractHermesMeta(events);
     const lines = ensureMeaningfulLines(normalizeProviderEvents("hermes", events), events);
     return {
       provider: "hermes",
-      model: null,
+      model: meta.model,
       lines,
     };
   },

@@ -3,34 +3,7 @@ import path from "node:path";
 
 import type { HarnessAdapter, ImportedTrace, SessionResolution } from "./types.js";
 import { listFilesRecursive, parseUnknownTranscript, readUtf8 } from "./utils.js";
-import { normalizeProviderEvents, ensureMeaningfulLines } from "../format/normalizer.js";
-
-function extractCodexSessionMeta(events: unknown[]): {
-  sessionId: string | null;
-  provider: string | null;
-  model: string | null;
-  cwd: string | null;
-} {
-  const meta = events.find(
-    (event) =>
-      typeof event === "object" &&
-      event !== null &&
-      "type" in event &&
-      (event as Record<string, unknown>).type === "session_meta",
-  ) as Record<string, unknown> | undefined;
-
-  const payload =
-    meta && typeof meta.payload === "object" && meta.payload !== null
-      ? (meta.payload as Record<string, unknown>)
-      : null;
-
-  return {
-    sessionId: typeof payload?.id === "string" ? payload.id : null,
-    provider: typeof payload?.model_provider === "string" ? payload.model_provider : null,
-    model: typeof payload?.model === "string" ? payload.model : null,
-    cwd: typeof payload?.cwd === "string" ? payload.cwd : null,
-  };
-}
+import { normalizeProviderEvents, ensureMeaningfulLines, extractCodexMeta } from "../format/normalizer.js";
 
 async function findCodexSessionFileById(sessionId: string): Promise<string | null> {
   const root = path.join(os.homedir(), ".codex", "sessions");
@@ -39,7 +12,7 @@ async function findCodexSessionFileById(sessionId: string): Promise<string | nul
   for (const filePath of files) {
     const content = await readUtf8(filePath);
     const events = parseUnknownTranscript(content);
-    const meta = extractCodexSessionMeta(events);
+    const meta = extractCodexMeta(events);
     if (meta.sessionId === sessionId) {
       return filePath;
     }
@@ -55,7 +28,7 @@ async function findMostRecentCodexSessionForCwd(cwd: string): Promise<string | n
   for (const filePath of files) {
     const content = await readUtf8(filePath);
     const events = parseUnknownTranscript(content);
-    const meta = extractCodexSessionMeta(events);
+    const meta = extractCodexMeta(events);
     if (meta.cwd === cwd) {
       return filePath;
     }
@@ -112,7 +85,7 @@ export const codexAdapter: HarnessAdapter = {
 
   async importSession(resolution): Promise<ImportedTrace> {
     const events = parseUnknownTranscript(resolution.sourceContent);
-    const meta = extractCodexSessionMeta(events);
+    const meta = extractCodexMeta(events);
     const lines = ensureMeaningfulLines(normalizeProviderEvents("codex", events), events);
 
     return {
