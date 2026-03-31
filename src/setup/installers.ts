@@ -126,18 +126,18 @@ export const codexSkillInstaller: SetupComponent = {
   },
 };
 
-export const claudeCommandInstaller: SetupComponent = {
+export const claudeSkillInstaller: SetupComponent = {
   harness: "claude-code",
   component: "instruction",
-  description: "Install the Claude Code autotune-capture user command",
+  description: "Install the Claude Code autotune-capture skill",
   async install() {
     return copyAssetIfMissing(
-      getAssetPath("commands", "claude-code", "autotune-capture.md"),
-      path.join(os.homedir(), ".claude", "commands", "autotune-capture.md"),
+      getAssetPath("skills", "claude-code", "autotune-capture", "SKILL.md"),
+      path.join(os.homedir(), ".claude", "skills", "autotune-capture", "SKILL.md"),
       {
         harness: "claude-code",
         component: "instruction",
-        target: path.join(os.homedir(), ".claude", "commands", "autotune-capture.md"),
+        target: path.join(os.homedir(), ".claude", "skills", "autotune-capture", "SKILL.md"),
       },
     );
   },
@@ -278,7 +278,7 @@ export const hermesPluginInstaller: SetupComponent = {
 export const SETUP_COMPONENTS: SetupComponent[] = [
   piAgentInstaller,
   codexSkillInstaller,
-  claudeCommandInstaller,
+  claudeSkillInstaller,
   claudeHookInstaller,
   openCodeSkillInstaller,
   openCodePluginInstaller,
@@ -295,8 +295,8 @@ const SETUP_BUNDLES = {
     nextSteps: ["ask Codex to use the autotune-capture skill"],
   },
   "claude-code": {
-    installers: [claudeCommandInstaller, claudeHookInstaller],
-    nextSteps: ["restart Claude Code", "verify /autotune-capture is available"],
+    installers: [claudeSkillInstaller, claudeHookInstaller],
+    nextSteps: ["restart Claude Code", "verify the autotune-capture skill is available"],
   },
   opencode: {
     installers: [openCodeSkillInstaller, openCodePluginInstaller],

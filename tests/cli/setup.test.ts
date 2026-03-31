@@ -48,7 +48,7 @@ describe("runSetupCommand", () => {
     expect(payload.skipped[0].component).toBe("pi-agent");
   });
 
-  it("installs the Claude Code user-level command and helper hook", async () => {
+  it("installs the Claude Code skill and helper hook", async () => {
     const tempHome = await fs.mkdtemp(path.join(os.tmpdir(), "autotune-home-"));
     vi.spyOn(os, "homedir").mockReturnValue(tempHome);
 
@@ -64,7 +64,7 @@ describe("runSetupCommand", () => {
     const { runSetupCommand } = await import("../../src/cli/setup.js");
     await runSetupCommand({ harness: ["claude-code"], yes: true });
 
-    const commandPath = path.join(tempHome, ".claude", "commands", "autotune-capture.md");
+    const skillPath = path.join(tempHome, ".claude", "skills", "autotune-capture", "SKILL.md");
     const settingsPath = path.join(tempHome, ".claude", "settings.json");
     const helperPath = path.join(
       tempHome,
@@ -73,7 +73,7 @@ describe("runSetupCommand", () => {
       "claude-code-session-registry.py",
     );
 
-    await expect(fs.readFile(commandPath, "utf8")).resolves.toContain("Autotune trace");
+    await expect(fs.readFile(skillPath, "utf8")).resolves.toContain("Autotune trace");
     await expect(fs.readFile(helperPath, "utf8")).resolves.toContain("session metadata");
 
     const settings = JSON.parse(await fs.readFile(settingsPath, "utf8"));
