@@ -37,7 +37,7 @@ describe("createRedactor", () => {
 
   it("redacts JWTs", () => {
     const redactor = createRedactor("test");
-    const jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abc123def456";
+    const jwt = "eyJGQUtFIjoiMSJ9.eyJGQUtFIjoiMiJ9.FAKESIGNATURE123";
     const lines: PiSessionLine[] = [
       createMessageEntry({ role: "user", text: `token: ${jwt}` }),
     ];
