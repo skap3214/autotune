@@ -1,17 +1,10 @@
-export default {
-  name: "autotune-session-env",
-  hooks: {
-    "shell.env": async (input) => {
+export const AutotuneSessionEnv = async () => {
+  return {
+    "shell.env": async (input, output) => {
       const sessionId = input?.sessionID ?? input?.sessionId ?? null;
-      if (!sessionId) {
-        return {};
+      if (sessionId) {
+        output.env.OPENCODE_SESSION_ID = String(sessionId);
       }
-
-      return {
-        env: {
-          OPENCODE_SESSION_ID: String(sessionId),
-        },
-      };
     },
-  },
+  };
 };
