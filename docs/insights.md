@@ -24,4 +24,12 @@
 - The implemented V0 `setup` flow works better as a harness multiselect that installs each harness's full default bundle at user scope instead of asking users to pick low-level components.
 - Claude Code should be treated as a user-level command + hook helper surface in V0, not as a `SKILL.md` harness; Codex, OpenCode, and Hermes keep user-level skill installs.
 
+- SFT should not be a production training step for coding agents; it causes catastrophic OOD forgetting (averaged -9.83 across 8 benchmarks in PivotRL experiments). Use it only as a quick sanity check that traces contain signal.
+- PivotRL (local RL from expert trajectories with pivot filtering + functional verifier reward) is the right training approach: it achieves E2E RL accuracy with 4x fewer rollout turns and avoids SFT's forgetting problem.
+- An LLM-as-judge is a valid PivotRL verifier (the paper explicitly supports this), eliminating the need for environment snapshots and test execution infrastructure during training. Judge quality becomes the main risk — validate against human labels before training.
+- The training path should be: capture traces → quick SFT validation → PivotRL with LLM judge → incrementally upgrade to real verifiers (test execution, lint) where higher fidelity matters.
+- The real fine-tuning bottlenecks are data sovereignty, iteration velocity, and hyperparameter tuning — not the algorithm. Use managed training platforms (Fireworks, Prime Intellect) rather than building custom infra.
+- Trace schema must clearly mark assistant turn boundaries as `(state, action)` pairs, since PivotRL extracts pivot candidates at these decision points.
+
 See [agentic-trace-rl-feasibility-2026-03-28.md](/Users/soami/Desktop/code/int/autotune/docs/research/agentic-trace-rl-feasibility-2026-03-28.md).
+See [training-strategy-pivotrl-rft-2026-03-31.md](/Users/soami/Desktop/code/int/autotune/docs/research/training-strategy-pivotrl-rft-2026-03-31.md).
