@@ -4,7 +4,8 @@ export type CliErrorCode =
   | "SESSION_UNRESOLVED"
   | "SETUP_REQUIRED"
   | "MERGE_FAILED"
-  | "STORAGE_WRITE_FAILED";
+  | "STORAGE_WRITE_FAILED"
+  | "EXPORT_FAILED";
 
 export class CliError extends Error {
   code: CliErrorCode;

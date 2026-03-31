@@ -3,6 +3,7 @@
 import { Command, Option } from "commander";
 
 import { runCaptureCommand } from "./cli/capture.js";
+import { runExportCommand } from "./cli/export.js";
 import { runInitCommand } from "./cli/init.js";
 import { runMergeCommand } from "./cli/merge.js";
 import { runSetupCommand } from "./cli/setup.js";
@@ -55,5 +56,18 @@ program
   .option("--traces-file <path>", "manifest file")
   .option("--note <text>", "merge annotation")
   .action((options) => runCliAction(() => runMergeCommand(options)));
+
+program
+  .command("export")
+  .description("Export captured traces as training-ready datasets")
+  .option("--trace <id>", "repeatable trace id to export", (value, previous: string[] = []) => {
+    previous.push(value);
+    return previous;
+  })
+  .option("--format <name>", "output format: sessions, sft-jsonl, chatml", "sessions")
+  .option("--output <path>", "write output to file instead of stdout")
+  .option("--no-redact", "skip privacy redaction")
+  .option("--kind <type>", "filter by trace kind: captured, merged, all", "all")
+  .action((options) => runCliAction(() => runExportCommand(options)));
 
 await program.parseAsync(process.argv);
