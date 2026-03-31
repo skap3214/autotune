@@ -1,0 +1,3 @@
+name: session-env
+version: "1.0"
+description: Expose the current session ID as HERMES_SESSION_ID environment variable
