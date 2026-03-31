@@ -73,7 +73,7 @@ describe("runSetupCommand", () => {
       "claude-code-session-registry.py",
     );
 
-    await expect(fs.readFile(skillPath, "utf8")).resolves.toContain("Autotune trace");
+    await expect(fs.readFile(skillPath, "utf8")).resolves.toContain("autotune-capture");
     await expect(fs.readFile(helperPath, "utf8")).resolves.toContain("session metadata");
 
     const settings = JSON.parse(await fs.readFile(settingsPath, "utf8"));
