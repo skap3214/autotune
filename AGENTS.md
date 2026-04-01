@@ -11,6 +11,10 @@ Agentic trace collection, storage, and RL fine-tuning pipeline. Captures tool-us
 | `docs/architecture/` | Architectural and design decisions that have been made and implemented |
 | `docs/insights.md` | Small, general insights worth revisiting later |
 
+## Export Formatting Rule
+
+Training export formats (sharegpt, sft-jsonl, chatml) must never inject fabricated conversation turns. No information is added or inferred — only reformatted. Metadata (harness, goal, outcome, model) belongs as top-level fields on the JSONL object, not as fake system messages or conversation turns that were not part of the original session.
+
 ## Documentation Rules
 
 1. **Before starting work** — read existing docs to avoid duplicating research or contradicting decisions.
