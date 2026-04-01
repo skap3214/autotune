@@ -80,22 +80,9 @@ export function formatSftJsonl(payloads: TraceExportPayload[]): string {
 
 export function formatChatMl(payloads: TraceExportPayload[]): string {
   const blocks = payloads.map((payload) => {
-    const traceMeta = extractTraceMeta(payload.lines);
-    const providerMeta = extractProviderMeta(payload.lines);
-
     const parts: string[] = [];
 
-    // System message from metadata.
-    const systemParts: string[] = [];
-    if (providerMeta?.harness) systemParts.push(`Harness: ${providerMeta.harness}`);
-    if (traceMeta?.goal) systemParts.push(`Goal: ${traceMeta.goal}`);
-    if (systemParts.length > 0) {
-      parts.push(`<|im_start|>system\n${systemParts.join("\n")}<|im_end|>`);
-    }
-
-    // Messages + inline tool calls/results.
-    const allLines = payload.lines;
-    for (const line of allLines) {
+    for (const line of payload.lines) {
       if (line.type === "message") {
         parts.push(`<|im_start|>${line.role}\n${line.text}<|im_end|>`);
       }
@@ -133,17 +120,7 @@ const ROLE_TO_SHAREGPT: Record<string, string> = {
 
 export function formatShareGpt(payloads: TraceExportPayload[]): string {
   const lines = payloads.map((payload) => {
-    const traceMeta = extractTraceMeta(payload.lines);
-    const providerMeta = extractProviderMeta(payload.lines);
     const conversations: Array<{ from: string; value: string }> = [];
-
-    // System turn from metadata.
-    const systemParts: string[] = [];
-    if (providerMeta?.harness) systemParts.push(`Harness: ${providerMeta.harness}`);
-    if (traceMeta?.goal) systemParts.push(`Goal: ${traceMeta.goal}`);
-    if (systemParts.length > 0) {
-      conversations.push({ from: "system", value: systemParts.join("\n") });
-    }
 
     for (const line of payload.lines) {
       if (line.type === "message") {
